@@ -2186,7 +2186,12 @@ function InstalledPluginsSection() {
     }
   }
 
-  const plugins = inventory?.plugins ?? []
+  const all = inventory?.plugins ?? []
+  // Only real installs are listed: a `link:` / workspace package is somebody's
+  // own working copy, has no remote version to compare and cannot be updated, so
+  // showing it here only adds rows that never do anything.
+  const plugins = all.filter(plugin => plugin.source?.kind === 'npm' || plugin.source?.kind === 'github')
+  const localCount = all.length - plugins.length
   const summary = inventory?.summary ?? null
   const checkableCount = plugins.filter(
     plugin => plugin.source?.kind === 'github' || plugin.source?.kind === 'npm').length
@@ -2224,8 +2229,9 @@ function InstalledPluginsSection() {
         React.createElement('p', { className: 'dip-sub' },
           summary === null
             ? '读取中…'
-            : `共 ${String(summary.total)} 个 · GitHub ${String(summary.github)} 个 · npm ${String(summary.npm)} 个 · `
-              + `本地 ${String(summary.other)} 个 · 来源目录 ${inventory.profileDir ?? '未找到'}`),
+            : `共 ${String(plugins.length)} 个 · GitHub ${String(summary.github)} 个 · npm ${String(summary.npm)} 个`
+              + (localCount > 0 ? ` · 另有本地 ${String(localCount)} 个（不列出）` : '')
+              + ` · 来源目录 ${inventory.profileDir ?? '未找到'}`),
         React.createElement('p', { className: 'dip-sub' },
           '更新是排队执行的：一次只装一个，装完一个再下一个。',
           React.createElement('b', null, '更新期间请不要离开此页面'),
