@@ -1,8 +1,20 @@
 {
   "name": "dsh-desk-stickers",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "type": "module",
   "description": "给 DeepSeek Harness 的桌面贴几张顺手的「贴纸」",
+  "author": "purakkon",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/purakkon/dsh-desk-stickers.git"
+  },
+  "homepage": "https://github.com/purakkon/dsh-desk-stickers#readme",
+  "bugs": {
+    "url": "https://github.com/purakkon/dsh-desk-stickers/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "dsh",
     "dsh-plugin",
