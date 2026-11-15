@@ -1,0 +1,12 @@
+node_modules/
+*.log
+.DS_Store
+
+# local rollback copies — they stay on this machine, never in the repo
+*.bak
+*.bak-*
+*.tmp-*
+.state.json
+
+# throwaway verification output
+verify/

@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>便利贴</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+  :root {
+    --paper: #fbf6e7;
+    --ink: #3d382c;
+    --bar: #f2ead4;
+    --line: rgba(0, 0, 0, 0.14);
+    --muted: rgba(0, 0, 0, 0.48);
+    --layer1: rgba(0, 0, 0, 0.05);
+    --layer2: rgba(0, 0, 0, 0.09);
+    --brand: #c2832a;
+    --font: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+    --size: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: var(--size);
+    line-height: 1.55;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 6px 7px;
+    background: var(--bar);
+    border-bottom: 1px solid var(--line);
+    user-select: none;
+  }
+  .seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 7px;
+    background: var(--layer1);
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: default;
+  }
+  .seg button:hover { color: var(--ink); }
+  .seg button[data-on="true"] {
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  }
+  .tools { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
+  .tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1;
+    cursor: default;
+  }
+  .tool:hover { background: var(--layer2); color: var(--ink); }
+  .tool[data-on="true"] { color: var(--brand); }
+  .size { min-width: 22px; text-align: center; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .meta .tail { margin-left: auto; opacity: 0.75; }
+  .meta .count { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+  .body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+
+  textarea.text {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--size);
+    line-height: 1.55;
+    padding: 10px 12px;
+  }
+  textarea.text::placeholder { color: var(--muted); opacity: 0.8; }
+
+  /* ---- the sheet ------------------------------------------------------- */
+  /* Widths are fixed per column, so a wide sheet scrolls instead of squeezing:
+     the horizontal bar sits at the bottom of this box. */
+  .gridwrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px 8px 8px;
+    user-select: none;
+  }
+  .gridwrap::-webkit-scrollbar { width: 10px; height: 10px; }
+  .gridwrap::-webkit-scrollbar-thumb {
+    background: var(--layer2);
+    border-radius: 6px;
+  }
+  .gridwrap::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  .gridwrap::-webkit-scrollbar-track { background: transparent; }
+
+  table.grid {
+    border-collapse: collapse;
+    table-layout: fixed;
+    /* As wide as the columns were dragged — and never one pixel more. No
+       `min-width: 100%`: under `table-layout: fixed` a table wider than its
+       columns' sum hands the surplus out to the columns, which is why dragging
+       the window open used to stretch every cell. The empty area to the right
+       stays empty, exactly like a sheet that simply ends there. */
+    width: max-content;
+    font-size: var(--size);
+  }
+  table.grid th,
+  table.grid td {
+    border: 1px solid var(--line);
+    padding: 0;
+    position: relative;
+  }
+  /* Cells clip their text; headers must not clip, or the drag handle that hangs
+     over the grid line would be unreachable. */
+  table.grid td { overflow: hidden; }
+  table.grid th.colhead,
+  table.grid th.rowhead {
+    background: var(--bar);
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 10px;
+    text-align: center;
+    padding: 1px 4px;
+    white-space: nowrap;
+    cursor: default;
+  }
+  /* Frozen edges: the column letters and row numbers stay put, so the insert and
+     delete buttons never scroll out of reach when a column is dragged wide. */
+  table.grid th.colhead { position: sticky; top: 0; z-index: 3; background: var(--bar); }
+  table.grid th.rowhead { position: sticky; left: 0; z-index: 2; background: var(--bar); }
+  table.grid th.corner { position: sticky; left: 0; top: 0; z-index: 4; background: var(--bar); }
+  table.grid th.gridtools { position: sticky; top: 0; right: 0; z-index: 5; background: var(--bar); }
+  table.grid td.gridtools { position: sticky; left: 0; z-index: 2; background: var(--paper); }
+  table.grid th.colhead:hover,
+  table.grid th.rowhead:hover { color: var(--ink); }
+  table.grid th.colhead[data-sel="true"],
+  table.grid th.rowhead[data-sel="true"] {
+    background: var(--brand);
+    color: var(--paper);
+  }
+  table.grid th.corner { background: var(--bar); border-color: var(--line); }
+  table.grid td { background: var(--layer1); height: inherit; }
+  table.grid td[data-sel="true"] { background: var(--layer2); }
+  table.grid td input {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--size);
+    padding: 2px 6px;
+  }
+  table.grid td:focus-within { box-shadow: inset 0 0 0 1.5px var(--brand); }
+
+  /* the insert/delete cells: right of the column letters, under the row numbers */
+  table.grid th.gridtools,
+  table.grid td.gridtools,
+  table.grid th.toolcell,
+  table.grid td.toolcell {
+    border: 0;
+    background: transparent;
+  }
+  .tools-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 1px 2px;
+  }
+  .tools-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 1px 2px;
+  }
+  .cellsbtn {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bar);
+    color: var(--muted);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+    cursor: default;
+  }
+  .cellsbtn:hover {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: var(--paper);
+  }
+  .cellsbtn:disabled { opacity: 0.3; }
+  .cellsbtn:disabled:hover {
+    background: var(--bar);
+    border-color: var(--line);
+    color: var(--muted);
+  }
+
+  /* drag targets on the grid lines */
+  .resize { position: absolute; z-index: 2; }
+  .resize.col {
+    top: 0;
+    right: -2px;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+  }
+  .resize.row {
+    left: 0;
+    bottom: -3px;
+    height: 7px;
+    width: 100%;
+    cursor: row-resize;
+  }
+  .resize:hover { background: var(--brand); opacity: 0.45; }
+
+  /* right-click menu: the numbers the sheet keeps, and the actions on them */
+  .menu {
+    position: fixed;
+    z-index: 100;
+    min-width: 172px;
+    padding: 4px;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+    user-select: none;
+  }
+  .menu-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+  }
+  .menu-label { flex: 1 1 auto; color: var(--muted); }
+  .menu-number {
+    width: 58px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--layer1);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    padding: 1px 4px;
+  }
+  .menu-unit { color: var(--muted); font-size: 11px; }
+  .menu-action {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    padding: 5px 6px;
+    border-radius: 5px;
+    cursor: default;
+  }
+  .menu-action:hover { background: var(--layer2); }
+  .menu-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+
+  .list { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 6px 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .item { display: flex; align-items: center; gap: 6px; padding: 2px; border-radius: 6px; }
+  .item:hover { background: var(--layer1); }
+  .item input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 14px; height: 14px;
+    margin: 0;
+    accent-color: var(--brand);
+    cursor: default;
+  }
+  .item input[type="text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--size);
+    padding: 3px 2px;
+  }
+  .item[data-done="true"] input[type="text"] { color: var(--muted); text-decoration: line-through; }
+  .rowbtn {
+    flex: 0 0 auto;
+    width: 18px; height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    cursor: default;
+    opacity: 0;
+  }
+  .item:hover .rowbtn { opacity: 1; }
+  .rowbtn:hover { color: #c04141; }
+  .add {
+    align-self: flex-start;
+    margin: 4px 8px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    cursor: default;
+  }
+  .add:hover { background: var(--layer1); color: var(--ink); }
+
+  .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="seg" id="modes" role="group" aria-label="切换模式"></div>
+    <div class="tools">
+      <button class="tool" id="smaller" type="button" title="字小一点">A−</button>
+      <span class="size" id="sizeLabel">14</span>
+      <button class="tool" id="bigger" type="button" title="字大一点">A＋</button>
+      <button class="tool" id="pin" type="button" title="置顶" data-on="true">📌</button>
+      <button class="tool" id="retract" type="button" title="收回 DSH">收回</button>
+    </div>
+  </div>
+  <div class="meta" id="meta"><span class="tail">桌面便签 · 自动保存</span></div>
+  <div class="body" id="body"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var ROUTE = '/plugins/dsh-desk-stickers';
+  var MODES = [
+    { id: 'text', label: '文本' },
+    { id: 'grid', label: '表格' },
+    { id: 'list', label: '清单' }
+  ];
+
+  var DEFAULT_COL = 96;
+  var DEFAULT_ROW = 28;
+  var MIN_COL = 44;
+  var MAX_COL = 480;
+  var MIN_ROW = 18;
+  var MAX_ROW = 300;
+  var MAX_ROWS = 60;
+  var MAX_COLS = 20;
+
+  var state = null;
+  var lastRev = 0;
+  var dirty = false;
+  var pushing = false;
+  var pushTimer = null;
+  var retracted = false;
+  var topmost = true;
+  var lastRect = '';
+  /** A whole row or column picked by clicking its header: {type, from, to}. */
+  var selection = null;
+
+  function byId(id) { return document.getElementById(id); }
+
+  function make(tag, className) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function colName(index) {
+    var n = index;
+    var name = '';
+    do {
+      name = String.fromCharCode(65 + (n % 26)) + name;
+      n = Math.floor(n / 26) - 1;
+    } while (n >= 0);
+    return name;
+  }
+
+  function windowRect() {
+    return {
+      x: Math.round(window.screenX),
+      y: Math.round(window.screenY),
+      w: Math.round(window.outerWidth),
+      h: Math.round(window.outerHeight)
+    };
+  }
+
+  // ---------------------------------------------------------------- the sheet
+
+  /**
+   * The sheet as this page stores it: cells plus one width per column and one
+   * height per row, so a column can be dragged wider than the note itself and the
+   * bar at the bottom carries the overflow.
+   */
+  function normalizeGrid(value) {
+    var source = value !== null && typeof value === 'object' ? value : {};
+    var rows = clamp(Math.round(Number(source.rows) || 5), 1, MAX_ROWS);
+    var cols = clamp(Math.round(Number(source.cols) || 3), 1, MAX_COLS);
+    var cells = [];
+    for (var r = 0; r < rows; r += 1) {
+      var row = Array.isArray(source.cells) && Array.isArray(source.cells[r]) ? source.cells[r] : [];
+      var line = [];
+      for (var c = 0; c < cols; c += 1) line.push(typeof row[c] === 'string' ? row[c] : '');
+      cells.push(line);
+    }
+    var colWidths = [];
+    for (c = 0; c < cols; c += 1) {
+      var width = Number(source.colWidths && source.colWidths[c]);
+      colWidths.push(clamp(Math.round(Number.isFinite(width) && width > 0 ? width : DEFAULT_COL), MIN_COL, MAX_COL));
+    }
+    var rowHeights = [];
+    for (r = 0; r < rows; r += 1) {
+      var height = Number(source.rowHeights && source.rowHeights[r]);
+      rowHeights.push(clamp(Math.round(Number.isFinite(height) && height > 0 ? height : DEFAULT_ROW), MIN_ROW, MAX_ROW));
+    }
+    return { rows: rows, cols: cols, cells: cells, colWidths: colWidths, rowHeights: rowHeights };
+  }
+
+  function isColumnSelected(index) {
+    return selection !== null && selection.type === 'col' && index >= selection.from && index <= selection.to;
+  }
+
+  function isRowSelected(index) {
+    return selection !== null && selection.type === 'row' && index >= selection.from && index <= selection.to;
+  }
+
+  /** Paint the current selection onto the table that is already on screen. */
+  function applySelection() {
+    var table = document.querySelector('table.grid');
+    if (table !== null) {
+      var heads = table.querySelectorAll('th.colhead');
+      for (var i = 0; i < heads.length; i += 1) {
+        heads[i].setAttribute('data-sel', isColumnSelected(Number(heads[i].getAttribute('data-col'))) ? 'true' : 'false');
+      }
+      var rowHeads = table.querySelectorAll('th.rowhead');
+      for (i = 0; i < rowHeads.length; i += 1) {
+        rowHeads[i].setAttribute('data-sel', isRowSelected(Number(rowHeads[i].getAttribute('data-row'))) ? 'true' : 'false');
+      }
+      var cells = table.querySelectorAll('td[data-col]');
+      for (i = 0; i < cells.length; i += 1) {
+        var col = Number(cells[i].getAttribute('data-col'));
+        var row = Number(cells[i].getAttribute('data-row'));
+        cells[i].setAttribute('data-sel', (isColumnSelected(col) || isRowSelected(row)) ? 'true' : 'false');
+      }
+    }
+    renderMeta();
+  }
+
+  function setSelection(next) {
+    selection = next;
+    applySelection();
+  }
+
+  function columnHasContent(from, to) {
+    var grid = state.grid;
+    for (var r = 0; r < grid.rows; r += 1) {
+      for (var c = from; c <= to; c += 1) {
+        if (String(grid.cells[r][c] || '').trim() !== '') return true;
+      }
+    }
+    return false;
+  }
+
+  function rowHasContent(index) {
+    var grid = state.grid;
+    return grid.cells[index].some(function (cell) { return String(cell).trim() !== ''; });
+  }
+
+  function insertColumnAt(at) {
+    var grid = state.grid;
+    if (grid.cols >= MAX_COLS) return;
+    var index = clamp(at, 0, grid.cols);
+    for (var r = 0; r < grid.cells.length; r += 1) grid.cells[r].splice(index, 0, '');
+    grid.colWidths.splice(index, 0, DEFAULT_COL);
+    grid.cols += 1;
+    selection = { type: 'col', from: index, to: index };
+    renderAll();
+    markDirty();
+  }
+
+  function insertRowAt(at) {
+    var grid = state.grid;
+    if (grid.rows >= MAX_ROWS) return;
+    var index = clamp(at, 0, grid.rows);
+    var line = [];
+    for (var c = 0; c < grid.cols; c += 1) line.push('');
+    grid.cells.splice(index, 0, line);
+    grid.rowHeights.splice(index, 0, DEFAULT_ROW);
+    grid.rows += 1;
+    selection = { type: 'row', from: index, to: index };
+    renderAll();
+    markDirty();
+  }
+
+  function addColumn() {
+    insertColumnAt(selection !== null && selection.type === 'col' ? selection.to + 1 : state.grid.cols);
+  }
+
+  function addRow() {
+    insertRowAt(selection !== null && selection.type === 'row' ? selection.to + 1 : state.grid.rows);
+  }
+
+  function removeColumns(from, count) {
+    var grid = state.grid;
+    if (grid.cols <= 1) return;
+    var start = clamp(from, 0, grid.cols - 1);
+    var size = Math.min(count, grid.cols - 1 - start + 1);
+    if (size <= 0) return;
+    var label = size === 1 ? '这一列' : String(size) + ' 列';
+    if (columnHasContent(start, start + size - 1) && !window.confirm('选中的' + label + '还有字，删掉？')) return;
+    for (var r = 0; r < grid.cells.length; r += 1) grid.cells[r].splice(start, size);
+    grid.colWidths.splice(start, size);
+    grid.cols -= size;
+    selection = null;
+    renderAll();
+    markDirty();
+  }
+
+  function removeRows(from, count) {
+    var grid = state.grid;
+    if (grid.rows <= 1) return;
+    var start = clamp(from, 0, grid.rows - 1);
+    var size = Math.min(count, grid.rows - 1 - start + 1);
+    if (size <= 0) return;
+    var label = size === 1 ? '这一行' : String(size) + ' 行';
+    var filled = false;
+    for (var i = start; i < start + size; i += 1) {
+      if (rowHasContent(i)) { filled = true; break; }
+    }
+    if (filled && !window.confirm('选中的' + label + '还有字，删掉？')) return;
+    grid.cells.splice(start, size);
+    grid.rowHeights.splice(start, size);
+    grid.rows -= size;
+    selection = null;
+    renderAll();
+    markDirty();
+  }
+
+  /** Delete whatever headers are selected; the last row and column always stay. */
+  function removeSelected() {
+    if (selection === null) return;
+    if (selection.type === 'col') removeColumns(selection.from, selection.to - selection.from + 1);
+    else removeRows(selection.from, selection.to - selection.from + 1);
+  }
+
+  function setColumnWidth(index, value) {
+    var grid = state.grid;
+    if (index < 0 || index >= grid.cols) return;
+    grid.colWidths[index] = clamp(Math.round(value), MIN_COL, MAX_COL);
+    renderAll();
+    markDirty();
+  }
+
+  function setRowHeight(index, value) {
+    var grid = state.grid;
+    if (index < 0 || index >= grid.rows) return;
+    grid.rowHeights[index] = clamp(Math.round(value), MIN_ROW, MAX_ROW);
+    renderAll();
+    markDirty();
+  }
+
+  // ------------------------------------------------------------ context menu
+
+  /** The menu is a body-level box, so it survives the table being re-rendered. */
+  var menuElement = null;
+
+  function closeMenu() {
+    if (menuElement === null) return;
+    menuElement.remove();
+    menuElement = null;
+  }
+
+  function openMenu(x, y, build) {
+    closeMenu();
+    var box = make('div', 'menu');
+    box.setAttribute('role', 'menu');
+    build(box);
+    document.body.appendChild(box);
+    var size = box.getBoundingClientRect();
+    box.style.left = Math.max(4, Math.min(x, window.innerWidth - size.width - 4)) + 'px';
+    box.style.top = Math.max(4, Math.min(y, window.innerHeight - size.height - 4)) + 'px';
+    menuElement = box;
+  }
+
+  /** One labelled row: the value the sheet holds, editable in place. */
+  function menuNumber(box, label, value, min, max, apply) {
+    var row = make('div', 'menu-row');
+    var text = make('span', 'menu-label');
+    text.textContent = label;
+    var input = make('input', 'menu-number');
+    input.type = 'number';
+    input.min = String(min);
+    input.max = String(max);
+    input.step = '1';
+    input.value = String(value);
+    input.title = label + '（' + min + '–' + max + '）';
+    input.addEventListener('focus', function () { input.select(); });
+    input.addEventListener('change', function () {
+      var next = Number(input.value);
+      if (Number.isFinite(next)) apply(clamp(Math.round(next), min, max));
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      var next = Number(input.value);
+      if (Number.isFinite(next)) apply(clamp(Math.round(next), min, max));
+      closeMenu();
+    });
+    var unit = make('span', 'menu-unit');
+    unit.textContent = 'px';
+    row.appendChild(text);
+    row.appendChild(input);
+    row.appendChild(unit);
+    box.appendChild(row);
+  }
+
+  function menuAction(box, label, handler) {
+    var button = make('button', 'menu-action');
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', function () {
+      closeMenu();
+      handler();
+    });
+    box.appendChild(button);
+  }
+
+  function menuSeparator(box) {
+    box.appendChild(make('div', 'menu-sep'));
+  }
+
+  function openColumnMenu(x, y, index) {
+    setSelection({ type: 'col', from: index, to: index });
+    openMenu(x, y, function (box) {
+      menuNumber(box, '列宽', state.grid.colWidths[index], MIN_COL, MAX_COL, function (value) {
+        setColumnWidth(index, value);
+      });
+      menuSeparator(box);
+      menuAction(box, '在后面插入一列', function () { insertColumnAt(index + 1); });
+      menuAction(box, '删除这一列', function () { removeColumns(index, 1); });
+    });
+  }
+
+  function openRowMenu(x, y, index) {
+    setSelection({ type: 'row', from: index, to: index });
+    openMenu(x, y, function (box) {
+      menuNumber(box, '行高', state.grid.rowHeights[index], MIN_ROW, MAX_ROW, function (value) {
+        setRowHeight(index, value);
+      });
+      menuSeparator(box);
+      menuAction(box, '在后面插入一行', function () { insertRowAt(index + 1); });
+      menuAction(box, '删除这一行', function () { removeRows(index, 1); });
+    });
+  }
+
+  function openCellMenu(x, y, column, row) {
+    openMenu(x, y, function (box) {
+      menuNumber(box, '列宽', state.grid.colWidths[column], MIN_COL, MAX_COL, function (value) {
+        setColumnWidth(column, value);
+      });
+      menuNumber(box, '行高', state.grid.rowHeights[row], MIN_ROW, MAX_ROW, function (value) {
+        setRowHeight(row, value);
+      });
+      menuSeparator(box);
+      menuAction(box, '删除这一行', function () { removeRows(row, 1); });
+      menuAction(box, '删除这一列', function () { removeColumns(column, 1); });
+    });
+  }
+
+  function resizeHandle(kind, index) {
+    var handle = make('span', 'resize ' + kind);
+    handle.setAttribute('data-kind', kind);
+    handle.setAttribute('data-index', String(index));
+    return handle;
+  }
+
+  /** Drag one grid line: columns widen to the right, rows grow downward. */
+  function beginResize(event, handle) {
+    event.preventDefault();
+    event.stopPropagation();
+    var kind = handle.getAttribute('data-kind');
+    var index = Number(handle.getAttribute('data-index'));
+    var grid = state.grid;
+    if (!Number.isFinite(index) || index < 0) return;
+    var startValue = kind === 'col' ? grid.colWidths[index] : grid.rowHeights[index];
+    var startX = event.clientX;
+    var startY = event.clientY;
+    var colElement = kind === 'col' ? document.querySelector('col[data-col="' + index + '"]') : null;
+    var rowElement = kind === 'row' ? handle.closest('tr') : null;
+
+    function move(moveEvent) {
+      var delta = kind === 'col' ? moveEvent.clientX - startX : moveEvent.clientY - startY;
+      var value = kind === 'col'
+        ? clamp(startValue + delta, MIN_COL, MAX_COL)
+        : clamp(startValue + delta, MIN_ROW, MAX_ROW);
+      value = Math.round(value);
+      if (kind === 'col') {
+        grid.colWidths[index] = value;
+        if (colElement !== null) colElement.style.width = value + 'px';
+      } else {
+        grid.rowHeights[index] = value;
+        if (rowElement !== null) rowElement.style.height = value + 'px';
+      }
+    }
+
+    function up() {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', up);
+      markDirty();
+    }
+
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
+  }
+
+  /** Click a header to take the whole row or column; drag across to widen it. */
+  function beginSelect(event, type, index) {
+    var button = event.button;
+    if (typeof button === 'number' && button !== 0) return;
+    event.preventDefault();
+    setSelection({ type: type, from: index, to: index });
+    var start = index;
+
+    function move(moveEvent) {
+      var target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      if (target === null) return;
+      var head = target.closest(type === 'col' ? 'th.colhead' : 'th.rowhead');
+      if (head === null) return;
+      var value = Number(head.getAttribute(type === 'col' ? 'data-col' : 'data-row'));
+      if (!Number.isFinite(value)) return;
+      setSelection({ type: type, from: Math.min(start, value), to: Math.max(start, value) });
+    }
+
+    function up() {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', up);
+    }
+
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
+  }
+
+  function cellButton(label, hint, handler, disabled) {
+    var button = make('button', 'cellsbtn');
+    button.type = 'button';
+    button.textContent = label;
+    button.title = hint;
+    button.setAttribute('aria-label', hint);
+    if (disabled) button.disabled = true;
+    button.addEventListener('click', function (clickEvent) {
+      clickEvent.stopPropagation();
+      handler();
+    });
+    return button;
+  }
+
+  function renderGrid(host) {
+    var grid = state.grid;
+    var wrap = make('div', 'gridwrap');
+    var table = make('table', 'grid');
+
+    var colgroup = make('colgroup');
+    var cornerColumn = make('col');
+    cornerColumn.style.width = '30px';
+    colgroup.appendChild(cornerColumn);
+    for (var c = 0; c < grid.cols; c += 1) {
+      var col = make('col');
+      col.setAttribute('data-col', String(c));
+      col.style.width = grid.colWidths[c] + 'px';
+      colgroup.appendChild(col);
+    }
+    var toolColumn = make('col');
+    toolColumn.style.width = '22px';
+    colgroup.appendChild(toolColumn);
+    table.appendChild(colgroup);
+
+    var thead = make('thead');
+    var headRow = make('tr');
+    var corner = make('th', 'corner');
+    corner.setAttribute('aria-hidden', 'true');
+    headRow.appendChild(corner);
+    for (c = 0; c < grid.cols; c += 1) {
+      var head = make('th', 'colhead');
+      head.textContent = colName(c);
+      head.setAttribute('data-col', String(c));
+      head.setAttribute('title', '点击选中整列，拖动右边缘改列宽');
+      if (isColumnSelected(c)) head.setAttribute('data-sel', 'true');
+      head.appendChild(resizeHandle('col', c));
+      headRow.appendChild(head);
+    }
+    var columnTools = make('th', 'gridtools');
+    var columnToolsBox = make('div', 'tools-stack');
+    columnToolsBox.appendChild(cellButton('＋', '在后面加一列', addColumn, grid.cols >= MAX_COLS));
+    columnToolsBox.appendChild(cellButton('－', '删掉选中的列', removeSelected, grid.cols <= 1));
+    columnTools.appendChild(columnToolsBox);
+    headRow.appendChild(columnTools);
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    var tbody = make('tbody');
+    for (var r = 0; r < grid.rows; r += 1) {
+      var row = make('tr');
+      row.style.height = grid.rowHeights[r] + 'px';
+      var rowHead = make('th', 'rowhead');
+      rowHead.textContent = String(r + 1);
+      rowHead.setAttribute('data-row', String(r));
+      rowHead.setAttribute('title', '点击选中整行，拖动下边缘改行高');
+      if (isRowSelected(r)) rowHead.setAttribute('data-sel', 'true');
+      rowHead.appendChild(resizeHandle('row', r));
+      row.appendChild(rowHead);
+      for (var k = 0; k < grid.cols; k += 1) {
+        var cell = make('td');
+        cell.setAttribute('data-col', String(k));
+        cell.setAttribute('data-row', String(r));
+        if (isColumnSelected(k) || isRowSelected(r)) cell.setAttribute('data-sel', 'true');
+        var input = make('input');
+        input.type = 'text';
+        input.spellcheck = false;
+        input.value = grid.cells[r] && grid.cells[r][k] ? grid.cells[r][k] : '';
+        input.setAttribute('data-r', String(r));
+        input.setAttribute('data-c', String(k));
+        input.setAttribute('aria-label', colName(k) + (r + 1));
+        input.addEventListener('input', (function (rowIndex, colIndex) {
+          return function (inputEvent) {
+            if (!state.grid.cells[rowIndex]) state.grid.cells[rowIndex] = [];
+            state.grid.cells[rowIndex][colIndex] = inputEvent.target.value;
+            markDirty();
+          };
+        })(r, k));
+        cell.appendChild(input);
+        row.appendChild(cell);
+      }
+      row.appendChild(make('td', 'toolcell'));
+      tbody.appendChild(row);
+    }
+
+    // The row's own insert/delete sits under the row numbers, like a spreadsheet.
+    var toolRow = make('tr');
+    var rowTools = make('td', 'gridtools');
+    var rowToolsBox = make('div', 'tools-line');
+    rowToolsBox.appendChild(cellButton('＋', '在后面加一行', addRow, grid.rows >= MAX_ROWS));
+    rowToolsBox.appendChild(cellButton('－', '删掉选中的行', removeSelected, grid.rows <= 1));
+    rowTools.appendChild(rowToolsBox);
+    toolRow.appendChild(rowTools);
+    for (var i = 0; i < grid.cols; i += 1) toolRow.appendChild(make('td', 'toolcell'));
+    toolRow.appendChild(make('td', 'toolcell'));
+    tbody.appendChild(toolRow);
+    table.appendChild(tbody);
+
+    table.addEventListener('pointerdown', function (pointerEvent) {
+      var handle = pointerEvent.target.closest('.resize');
+      if (handle !== null) {
+        beginResize(pointerEvent, handle);
+        return;
+      }
+      var columnHead = pointerEvent.target.closest('th.colhead');
+      if (columnHead !== null) {
+        beginSelect(pointerEvent, 'col', Number(columnHead.getAttribute('data-col')));
+        return;
+      }
+      var rowHead = pointerEvent.target.closest('th.rowhead');
+      if (rowHead !== null) {
+        beginSelect(pointerEvent, 'row', Number(rowHead.getAttribute('data-row')));
+        return;
+      }
+      if (pointerEvent.target.closest('td') !== null) setSelection(null);
+    });
+
+    // Right-click: the numbers behind the grid, and the row/column actions.
+    table.addEventListener('contextmenu', function (menuEvent) {
+      menuEvent.preventDefault();
+      var columnHead = menuEvent.target.closest('th.colhead');
+      if (columnHead !== null) {
+        openColumnMenu(menuEvent.clientX, menuEvent.clientY, Number(columnHead.getAttribute('data-col')));
+        return;
+      }
+      var rowHead = menuEvent.target.closest('th.rowhead');
+      if (rowHead !== null) {
+        openRowMenu(menuEvent.clientX, menuEvent.clientY, Number(rowHead.getAttribute('data-row')));
+        return;
+      }
+      var cell = menuEvent.target.closest('td[data-col]');
+      if (cell !== null) {
+        openCellMenu(
+          menuEvent.clientX,
+          menuEvent.clientY,
+          Number(cell.getAttribute('data-col')),
+          Number(cell.getAttribute('data-row')),
+        );
+      }
+    });
+
+    wrap.appendChild(table);
+    host.appendChild(wrap);
+  }
+
+  // ------------------------------------------------------------------ chrome
+
+  function applyTheme(theme) {
+    var root = document.documentElement;
+    if (theme === null || typeof theme !== 'object') return;
+    var map = { bg: '--paper', fg: '--ink', bar: '--bar', line: '--line', muted: '--muted', layer1: '--layer1', layer2: '--layer2', brand: '--brand' };
+    for (var key in map) {
+      if (Object.prototype.hasOwnProperty.call(map, key) && typeof theme[key] === 'string' && theme[key] !== '') {
+        root.style.setProperty(map[key], theme[key]);
+      }
+    }
+  }
+
+  function renderModes() {
+    var host = byId('modes');
+    host.textContent = '';
+    MODES.forEach(function (mode) {
+      var button = make('button');
+      button.type = 'button';
+      button.textContent = mode.label;
+      button.setAttribute('data-on', state.mode === mode.id ? 'true' : 'false');
+      button.setAttribute('aria-pressed', state.mode === mode.id ? 'true' : 'false');
+      button.addEventListener('click', function () {
+        if (state.mode === mode.id) return;
+        state.mode = mode.id;
+        selection = null;
+        renderAll();
+        markDirty();
+      });
+      host.appendChild(button);
+    });
+  }
+
+  function renderMeta() {
+    var meta = byId('meta');
+    meta.textContent = '';
+    if (state !== null && state.mode === 'grid') {
+      var count = make('span', 'count');
+      var text = state.grid.rows + ' × ' + state.grid.cols;
+      if (selection !== null) {
+        text += selection.type === 'col'
+          ? ' · 选中 ' + colName(selection.from) + (selection.to > selection.from ? '–' + colName(selection.to) : '') + ' 列'
+          : ' · 选中第 ' + (selection.from + 1) + (selection.to > selection.from ? '–' + (selection.to + 1) : '') + ' 行';
+      }
+      count.textContent = text;
+      meta.appendChild(count);
+    } else if (state !== null && state.mode === 'list') {
+      var open = state.list.filter(function (item) { return item.done !== true; }).length;
+      var listCount = make('span', 'count');
+      listCount.textContent = open + ' 条待办';
+      meta.appendChild(listCount);
+    } else if (state !== null) {
+      var chars = make('span', 'count');
+      chars.textContent = state.text.replace(/\s/g, '').length + ' 字';
+      meta.appendChild(chars);
+    }
+    var tail = make('span', 'tail');
+    tail.textContent = topmost ? '桌面便签 · 置顶' : '桌面便签';
+    meta.appendChild(tail);
+  }
+
+  function renderBody() {
+    var host = byId('body');
+    host.textContent = '';
+    if (state.mode === 'grid') { renderGrid(host); return; }
+    if (state.mode === 'list') { renderList(host); return; }
+
+    var area = make('textarea', 'text');
+    area.value = state.text;
+    area.placeholder = '随手记点什么…';
+    area.spellcheck = false;
+    area.addEventListener('input', function () {
+      state.text = area.value;
+      renderMeta();
+      markDirty();
+    });
+    host.appendChild(area);
+    area.focus();
+  }
+
+  function renderList(host) {
+    var wrap = make('div', 'list');
+    state.list.forEach(function (item) {
+      var row = make('div', 'item');
+      row.setAttribute('data-done', item.done === true ? 'true' : 'false');
+
+      var box = make('input');
+      box.type = 'checkbox';
+      box.checked = item.done === true;
+      box.addEventListener('change', function () {
+        item.done = box.checked;
+        row.setAttribute('data-done', box.checked ? 'true' : 'false');
+        renderMeta();
+        markDirty();
+      });
+
+      var text = make('input');
+      text.type = 'text';
+      text.spellcheck = false;
+      text.value = item.text;
+      text.placeholder = '随手记点什么…';
+      text.addEventListener('input', function () {
+        item.text = text.value;
+        markDirty();
+      });
+
+      var remove = make('button', 'rowbtn');
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.title = '删除';
+      remove.addEventListener('click', function () {
+        state.list = state.list.filter(function (entry) { return entry.id !== item.id; });
+        renderAll();
+        markDirty();
+      });
+
+      row.appendChild(box);
+      row.appendChild(text);
+      row.appendChild(remove);
+      wrap.appendChild(row);
+    });
+
+    var add = make('button', 'add');
+    add.type = 'button';
+    add.textContent = '＋ 加一条';
+    add.addEventListener('click', function () {
+      state.list.push({ id: 'd' + Math.random().toString(36).slice(2, 9), text: '', done: false });
+      renderAll();
+      markDirty();
+    });
+    wrap.appendChild(add);
+    host.appendChild(wrap);
+  }
+
+  function renderAll() {
+    applyTheme(state.theme);
+    document.documentElement.style.setProperty('--size', state.fontSize + 'px');
+    byId('sizeLabel').textContent = String(state.fontSize);
+    byId('pin').setAttribute('data-on', topmost ? 'true' : 'false');
+    renderModes();
+    renderBody();
+    renderMeta();
+  }
+
+  function renderEmpty(message) {
+    var host = byId('body');
+    host.textContent = '';
+    var note = make('div', 'empty');
+    note.textContent = message;
+    host.appendChild(note);
+  }
+
+  // ---------------------------------------------------------------- transport
+
+  function adopt(next) {
+    lastRev = typeof next.rev === 'number' ? next.rev : lastRev;
+    state = {
+      mode: MODES.some(function (mode) { return mode.id === next.mode; }) ? next.mode : 'text',
+      fontSize: Number(next.fontSize) || 14,
+      text: typeof next.text === 'string' ? next.text : '',
+      grid: normalizeGrid(next.grid),
+      list: Array.isArray(next.list) ? next.list : [],
+      theme: next.theme && typeof next.theme === 'object' ? next.theme : {}
+    };
+    selection = null;
+    renderAll();
+  }
+
+  /** Apply the current pin state to the window (the page cannot do it itself). */
+  function pinTop() {
+    if (retracted) return Promise.resolve(false);
+    return fetch(ROUTE + '/topmost', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ on: topmost }),
+      cache: 'no-store'
+    })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (answer) { return answer !== null && answer.topmost === true; })
+      .catch(function () { return false; });
+  }
+
+  /**
+   * Pin a few times, stopping at the first success: a window that was only just
+   * created can be pushed back down by the browser's own placement pass.
+   */
+  function pinSoon(delays) {
+    var index = 0;
+    function attempt() {
+      if (retracted || index >= delays.length) return;
+      var delay = delays[index];
+      index += 1;
+      window.setTimeout(function () {
+        pinTop().then(function (ok) { if (!ok) attempt(); });
+      }, delay);
+    }
+    attempt();
+  }
+
+  function initial() {
+    fetch(ROUTE + '/state', { cache: 'no-store' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (next) {
+        if (next === null) throw new Error('no-state');
+        if (next.open !== true) { window.close(); return; }
+        adopt(next);
+        lastRect = JSON.stringify(windowRect());
+        if (topmost) pinSoon([250, 900, 2200]);
+        window.setInterval(pull, 800);
+        window.setInterval(checkRect, 2000);
+      })
+      .catch(function () {
+        renderEmpty('连不上 DSH，正在重试…');
+        window.setTimeout(initial, 1200);
+      });
+  }
+
+  function pull() {
+    if (retracted || state === null) return;
+    fetch(ROUTE + '/state', { cache: 'no-store' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (next) {
+        if (next === null) return;
+        if (next.open !== true) { retracted = true; window.close(); return; }
+        if (dirty || pushing) return;
+        if (typeof next.rev !== 'number' || next.rev <= lastRev) return;
+        adopt(next);
+      })
+      .catch(function () {
+        /* the Host may be busy or restarting; the next tick asks again */
+      });
+  }
+
+  function push() {
+    if (state === null || retracted) return;
+    pushTimer = null;
+    pushing = true;
+    var payload = {
+      mode: state.mode,
+      fontSize: state.fontSize,
+      text: state.text,
+      grid: state.grid,
+      list: state.list,
+      rect: windowRect()
+    };
+    lastRect = JSON.stringify(windowRect());
+    fetch(ROUTE + '/sync', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      cache: 'no-store'
+    })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (out) {
+        pushing = false;
+        if (out !== null && typeof out.rev === 'number') lastRev = Math.max(lastRev, out.rev);
+        dirty = false;
+      })
+      .catch(function () {
+        pushing = false;
+        dirty = true;
+      });
+  }
+
+  function markDirty() {
+    if (retracted) return;
+    dirty = true;
+    if (pushTimer !== null) clearTimeout(pushTimer);
+    pushTimer = window.setTimeout(push, 350);
+  }
+
+  function checkRect() {
+    if (state === null || retracted) return;
+    var now = JSON.stringify(windowRect());
+    if (now !== lastRect) markDirty();
+  }
+
+  function retract() {
+    if (retracted) return;
+    retracted = true;
+    if (pushTimer !== null) { clearTimeout(pushTimer); pushTimer = null; }
+    try {
+      navigator.sendBeacon(ROUTE + '/retract', '');
+    } catch (error) {
+      /* the window is closing anyway */
+    }
+    window.setTimeout(function () { window.close(); }, 220);
+  }
+
+  // ------------------------------------------------------------------ wiring
+
+  byId('smaller').addEventListener('click', function () {
+    state.fontSize = Math.max(11, state.fontSize - 1);
+    document.documentElement.style.setProperty('--size', state.fontSize + 'px');
+    byId('sizeLabel').textContent = String(state.fontSize);
+    markDirty();
+  });
+  byId('bigger').addEventListener('click', function () {
+    state.fontSize = Math.min(30, state.fontSize + 1);
+    document.documentElement.style.setProperty('--size', state.fontSize + 'px');
+    byId('sizeLabel').textContent = String(state.fontSize);
+    markDirty();
+  });
+  byId('pin').addEventListener('click', function () {
+    topmost = !topmost;
+    byId('pin').setAttribute('data-on', topmost ? 'true' : 'false');
+    renderMeta();
+    pinTop();
+  });
+  byId('retract').addEventListener('click', retract);
+
+  // Delete removes the selected rows or columns, like a spreadsheet; typing in
+  // the menu's number fields must not delete anything.
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && menuElement !== null) {
+      closeMenu();
+      return;
+    }
+    if (menuElement !== null && event.target instanceof Node && menuElement.contains(event.target)) return;
+    if (selection === null) return;
+    if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+    event.preventDefault();
+    removeSelected();
+  });
+
+  // Any click that is not inside the menu closes it.
+  document.addEventListener('pointerdown', function (event) {
+    if (menuElement === null) return;
+    if (event.target instanceof Node && menuElement.contains(event.target)) return;
+    closeMenu();
+  }, true);
+
+  window.addEventListener('blur', closeMenu);
+
+  window.addEventListener('beforeunload', function () {
+    if (!retracted) {
+      try { navigator.sendBeacon(ROUTE + '/retract', ''); } catch (error) { }
+    }
+  });
+
+  initial();
+})();
+</script>
+</body>
+</html>

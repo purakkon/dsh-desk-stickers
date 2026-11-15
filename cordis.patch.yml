@@ -1,0 +1,8 @@
+# dsh-desk-stickers bundle layer.
+#
+# Mounted by adding the package to `dsh.profile.bundles` (or `link:` dependency)
+# in the profile's package.json. Keep profile-level overrides as top-level
+# `- id: desk-stickers` rows in cordis.patch.yml.
+- insert:
+    - id: desk-stickers
+      name: dsh-desk-stickers

@@ -1,0 +1,43 @@
+{
+  "name": "dsh-desk-stickers",
+  "version": "0.9.8",
+  "type": "module",
+  "description": "给 DeepSeek Harness 的桌面贴几张顺手的「贴纸」",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "desktop",
+    "sticky-note",
+    "productivity"
+  ],
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "desktop.html",
+    "cordis.patch.yml",
+    "lib/*.mjs",
+    "lib/*.ps1",
+    "icon.svg",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}
