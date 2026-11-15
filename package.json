@@ -1,6 +1,6 @@
 {
   "name": "dsh-desk-stickers",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "type": "module",
   "description": "给 DeepSeek Harness 的桌面贴几张顺手的「贴纸」",
   "author": "purakkon",

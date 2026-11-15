@@ -74,9 +74,15 @@ check('npm current verdict', interpretNpm({ version: '1.1.0' }, { version: '1.1.
 // ---- updateSpec ------------------------------------------------------------
 
 const githubPlugin = { name: 'p', source: { kind: 'github', owner: 'o', repo: 'r', ref: 'a'.repeat(40) } }
-check('github update pins the new commit',
+// The archive URL, not `github:…#sha`: the git spec made pnpm resolve the commit
+// through github.com (65 s with a timeout) where the archive took 2 s.
+check('github update writes the archive URL',
   updateSpec(githubPlugin, { status: 'update', latest: 'c'.repeat(40) }),
-  `github:o/r#${'c'.repeat(40)}`)
+  `https://codeload.github.com/o/r/tar.gz/${'c'.repeat(40)}`)
+
+check('the archive spec is read back as github',
+  parseSpec(`https://codeload.github.com/o/r/tar.gz/${'c'.repeat(40)}`),
+  { kind: 'github', owner: 'o', repo: 'r', ref: 'c'.repeat(40), spec: `https://codeload.github.com/o/r/tar.gz/${'c'.repeat(40)}` })
 
 check('npm update uses a caret range',
   updateSpec({ name: 'p', source: { kind: 'npm' } }, { status: 'update', latest: '1.2.3' }),
